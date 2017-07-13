@@ -693,6 +693,34 @@ describe('Redfish Systems Root', function () {
             .expect(202);
     });
 
+    it('should 404 an invalid system for Bios.ResetBios', function() {
+        return helper.request().post('/redfish/v1/Systems/bad' + node.id + '/Bios.ResetBios')
+            .send({"Bios": {"Oem": {}},"target": {},"title": {}})
+            .expect('Content-Type', /^application\/json/)
+            .expect(404);
+    });
+
+    it('should 404 non-Dell identifier for Bios.ResetBios', function() {
+        return helper.request().post('/redfish/v1/Systems/' + node.id + '/Bios.ResetBios')
+            .send({"Bios": {"Oem": {}},"target": {},"title": {}})
+            .expect('Content-Type', /^application\/json/)
+            .expect(404);
+    });
+
+    it('should return a 202 for valid Dell identifier for Bios.ResetBios', function() {
+        // Force a southbound interface through httpEndpoints
+        configuration.set('httpEndpoints', httpEndpoints);
+        waterline.catalogs.findLatestCatalogOfSource.withArgs(dellNode.id, 'DeviceSummary').resolves(Promise.resolve({
+            node: dellNode.id,
+            source: 'DeviceSummary',
+            data: dellCatalogData.DeviceSummary
+        }));
+        return helper.request().post('/redfish/v1/Systems/' + dellNode.id + '/Bios.ResetBios')
+            .send({"Bios": {"Oem": {}},"target": {},"title": {}})
+            .expect('Content-Type', /^application\/json/)
+            .expect(202);
+    });
+
     it('should 404 an invalid identifier for ethernet query', function() {
         return helper.request().get('/redfish/v1/Systems/bad' + node.id + '/EthernetInterfaces')
             .expect('Content-Type', /^application\/json/)

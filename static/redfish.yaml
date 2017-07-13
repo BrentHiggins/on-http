@@ -346,7 +346,7 @@ paths:
           x-param-handler: sku
         - name: payload
           in: body
-          required: false
+          required: true
           schema:
             $ref: "#/definitions/Bios.ResetBios"
       responses:
@@ -2630,13 +2630,10 @@ definitions:
   Bios.ResetBios:
     description: This action is used to reset the BIOS attributes to default.
     properties:
-      target: 
-        type: string
-        format: uri
-        description: Link to invoke action
-      title: 
-        type: string
-        description: Friendly action name
+      Bios:
+        $ref: '#/definitions/Bios.v1_0_0.Actions'
+      target: {}
+      title: {}
     type: object
   Bios.v1_0_0.Actions:
     properties:
