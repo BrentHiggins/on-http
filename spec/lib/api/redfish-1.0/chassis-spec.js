@@ -16,6 +16,7 @@ describe('Redfish Chassis Root', function () {
     var Errors;
     var enclosure = {
         id: '4567efgh4567efgh4567efgh',
+        identifiers: ['ident'],
         name: 'Enclosure Node ABCDEFG',
         type: 'enclosure',
         relations: [
@@ -29,6 +30,7 @@ describe('Redfish Chassis Root', function () {
     };
     var system = {
         id: '1234abcd1234abcd1234abcd',
+        identifiers: ['ident'],
         name: 'name',
         type: 'compute',
         obmSettings: [
@@ -67,6 +69,7 @@ describe('Redfish Chassis Root', function () {
 
     var ucsEnclosure = {
         id: 'aaaabbbbcccc111122223333',
+        identifiers: ['ident'],
         name: 'sys/chassis-1',
         type: 'enclosure',
         relations: [
@@ -81,6 +84,7 @@ describe('Redfish Chassis Root', function () {
 
     var ucsSystem = {
         id: 'ddddeeeeffff444455556666',
+        identifiers: ['ident'],
         name: 'name',
         type: 'compute',
         obmSettings: [
@@ -149,12 +153,18 @@ describe('Redfish Chassis Root', function () {
         this.sandbox.stub(nodeApi, "getAllNodes");
         this.sandbox.stub(nodeApi, "getNodeCatalogSourceById");
         this.sandbox.stub(nodeApi, "getPollersByNodeId");
+        this.sandbox.stub(nodeApi, "getNodeByIdentifier");
         this.sandbox.stub(nodeApi, "getNodeById");
         nodeApi.getNodeById.withArgs('4567efgh4567efgh4567efgh').resolves(enclosure);
         nodeApi.getNodeById.withArgs('1234abcd1234abcd1234abcd').resolves(system);
         nodeApi.getNodeById.withArgs('aaaabbbbcccc111122223333').resolves(ucsEnclosure);
         nodeApi.getNodeById.withArgs('ddddeeeeffff444455556666').resolves(ucsSystem);
         nodeApi.getNodeById.rejects(new Errors.NotFoundError('Not Found'));
+        nodeApi.getNodeByIdentifier.withArgs('4567efgh4567efgh4567efgh').resolves(enclosure);
+        nodeApi.getNodeByIdentifier.withArgs('1234abcd1234abcd1234abcd').resolves(system);
+        nodeApi.getNodeByIdentifier.withArgs('aaaabbbbcccc111122223333').resolves(ucsEnclosure);
+        nodeApi.getNodeByIdentifier.withArgs('ddddeeeeffff444455556666').resolves(ucsSystem);
+        nodeApi.getNodeByIdentifier.rejects(new Errors.NotFoundError('Not Found'));
         nodeApi.getAllNodes.resolves([enclosure]);
     });
 
@@ -190,8 +200,8 @@ describe('Redfish Chassis Root', function () {
             });
     });
 
-    it('should return valid chassis and related targets', function() {
-        redfish.getVendorNameById.resolves({vendor: 'undefined'});
+    it('should return valid chassis and related targets', function () {
+        redfish.getVendorNameById.resolves({vendor: 'undefined', node: enclosure});
         nodeApi.getNodeCatalogSourceById.resolves({
             node: '1234abcd1234abcd1234abcd',
             source: 'dummysource',
@@ -216,8 +226,8 @@ describe('Redfish Chassis Root', function () {
             });
     });
 
-    it('should 404 an invalid chassis object', function() {
-        redfish.getVendorNameById.resolves({vendor: 'undefined'});
+    it('should 404 an invalid chassis object', function () {
+        redfish.getVendorNameById.rejects(new Errors.NotFoundError('Not Found'));
         return helper.request().get('/redfish/v1/Chassis/ABCDEFG')
         .expect('Content-Type', /^application\/json/)
         .expect(404)
@@ -262,7 +272,7 @@ describe('Redfish Chassis Root', function () {
             };
         });
 
-        it('should return an error when get system vendor faild', function() {
+        it('should return an error when get system vendor vaild', function () {
             redfish.getVendorNameById.rejects('ERROR');
             return helper.request().get('/redfish/v1/Chassis/' + ucsSystem.id + '/Thermal')
                 .expect('Content-Type', /^application\/json/)
@@ -274,7 +284,7 @@ describe('Redfish Chassis Root', function () {
 
         it('should return a valid UCS thermal object', function() {
             nodeApi.getPollersByNodeId.resolves([ucsPowerThermalPoller, ucsFanPoller]);
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsSystem});
             taskProtocol.requestPollerCache.withArgs('59bafde8dbbbc7a37814054c', { latestOnly: true })
             .resolves(
                 [
@@ -327,7 +337,7 @@ describe('Redfish Chassis Root', function () {
         });
 
         it('should 404 an invalid UCS chassis object', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsSystem});
             nodeApi.getPollersByNodeId.rejects('ERROR');
             return helper.request().get('/redfish/v1/Chassis/' + ucsSystem.id + '/Thermal')
                 .expect('Content-Type', /^application\/json/)
@@ -337,9 +347,9 @@ describe('Redfish Chassis Root', function () {
                 });
         });
 
-        it('should return valid UCS chassis and related targets', function() {
+        it('should return valid UCS chassis and related targets', function () {
             nodeApi.getPollersByNodeId.resolves([]);
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: ucsEnclosure});
             nodeApi.getNodeCatalogSourceById.onCall(0).returns(Promise.reject(new Errors.NotFoundError('geoff not found')));
             nodeApi.getNodeCatalogSourceById.returns(Promise.resolve({
                 node: '1234abcd1234abcd1234abcd',
@@ -359,7 +369,7 @@ describe('Redfish Chassis Root', function () {
 
 
         it('should return a valid thermal object', function () {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: enclosure});
             nodeApi.getPollersByNodeId.resolves([{
                 config: { command: 'sdr', inCondition: {} }
             }]);
@@ -406,7 +416,7 @@ describe('Redfish Chassis Root', function () {
         });
 
         it('should return a valid power object', function () {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: enclosure});
             nodeApi.getPollersByNodeId.resolves([{
                 config: { command: 'sdr', inCondition: {} }
             }]);
@@ -454,7 +464,7 @@ describe('Redfish Chassis Root', function () {
 
 
         it('should 404 an invalid chassis thermal object', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.rejects(new Errors.NotFoundError('Not Found'));
             return helper.request().get('/redfish/v1/Chassis/ABCDEFG/Thermal')
                 .expect('Content-Type', /^application\/json/)
                 .expect(404)
@@ -503,7 +513,7 @@ describe('Redfish Chassis Root', function () {
 
         it('should return a valid UCS power object', function() {
             nodeApi.getPollersByNodeId.resolves([ucsPowerThermalPoller, ucsPsuPoller]);
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsSystem});
             taskProtocol.requestPollerCache.withArgs('59bafde8dbbbc7a37814054c', {latestOnly: true})
             .resolves([
                 {
@@ -551,7 +561,7 @@ describe('Redfish Chassis Root', function () {
         });
 
         it('should 404 an invalid UCS power object', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsSystem});
             nodeApi.getPollersByNodeId.rejects('ERROR');
             return helper.request().get('/redfish/v1/Chassis/' + ucsSystem.id + '/Power')
                 .expect('Content-Type', /^application\/json/)
@@ -562,7 +572,7 @@ describe('Redfish Chassis Root', function () {
         });
 
         it('should return a valid non-ucs power object', function () {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: enclosure});
             nodeApi.getPollersByNodeId.resolves([{
                 config: { command: 'sdr', inCondition: {} }
             }]);
@@ -609,7 +619,7 @@ describe('Redfish Chassis Root', function () {
         });
 
         it('should 404 an invalid chassis power object', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.rejects(new Errors.NotFoundError('Not Found'));
             return helper.request().get('/redfish/v1/Chassis/ABCDEFG/Power')
                 .expect('Content-Type', /^application\/json/)
                 .expect(404)

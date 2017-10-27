@@ -143,20 +143,25 @@ describe('Redfish Systems Root', function () {
         this.sandbox.stub(taskProtocol);
         this.sandbox.stub(nodeApi, "setNodeWorkflowById");
         this.sandbox.stub(nodeApi, "getAllNodes");
+        this.sandbox.stub(nodeApi, "getNodeByIdentifier");
+        this.sandbox.stub(nodeApi, "getNodeById");
         this.sandbox.stub(racadm, "runCommand");
         this.sandbox.stub(wsman, "getLog");
         this.sandbox.spy(tv4, "validate");
         this.sandbox.stub(mktemp, 'createFile');
         this.sandbox.stub(fs, 'writeFile');
 
-        waterline.nodes.getNodeById.resolves();
+        nodeApi.getNodeByIdentifier.resolves();
+        nodeApi.getNodeById.resolves();
         waterline.nodes.needByIdentifier.resolves();
 
         waterline.nodes.needByIdentifier.withArgs(node.id).resolves(Promise.resolve(node));
         waterline.nodes.needByIdentifier.withArgs(dellNode.id).resolves(Promise.resolve(dellNode));
 
-        waterline.nodes.getNodeById.withArgs(node.id).resolves(Promise.resolve(node));
-        waterline.nodes.getNodeById.withArgs(dellNode.id).resolves(Promise.resolve(dellNode));
+        nodeApi.getNodeByIdentifier.withArgs(node.id).resolves(Promise.resolve(node));
+        nodeApi.getNodeByIdentifier.withArgs(dellNode.id).resolves(Promise.resolve(dellNode));
+        nodeApi.getNodeById.withArgs(node.id).resolves(Promise.resolve(node));
+        nodeApi.getNodeById.withArgs(dellNode.id).resolves(Promise.resolve(dellNode));
 
         waterline.catalogs.findLatestCatalogOfSource.rejects(new Errors.NotFoundError());
         nodeApi.setNodeWorkflowById.resolves({instanceId: 'abcdef'});
@@ -1592,7 +1597,7 @@ describe('Redfish Systems Root', function () {
             waterline.catalogs.findLatestCatalogOfSource
                 .withArgs(ucsNodeId, 'UCS').resolves(ucsCatalog);
             waterline.nodes.needByIdentifier.withArgs(ucsNodeId).resolves(ucsNode);
-            waterline.nodes.getNodeById.withArgs(ucsNodeId).resolves(ucsNode);
+            nodeApi.getNodeByIdentifier.withArgs(ucsNodeId).resolves(ucsNode);
 
             return helper.request().get('/redfish/v1/Systems/' + ucsNodeId + '/Processors')
                 .expect('Content-Type', /^application\/json/)
@@ -1843,7 +1848,7 @@ describe('Redfish Systems Root', function () {
                 source: 'dummysource',
                 data: dellCatalogData
             }));
-            redfish.getVendorNameById.resolves({vendor: 'Dell'});
+            redfish.getVendorNameById.resolves({vendor: 'Dell', node: dellNode});
 
             return helper.request().get('/redfish/v1/Systems/' + dellNode.id + '/Processors/0')
                 .expect('Content-Type', /^application\/json/)
@@ -1862,7 +1867,7 @@ describe('Redfish Systems Root', function () {
                 source: 'dummysource',
                 data: dellCatalogData
             }));
-            redfish.getVendorNameById.resolves({vendor: 'Dell'});
+            redfish.getVendorNameById.resolves({vendor: 'Dell', node: dellNode});
 
             return helper.request().get('/redfish/v1/Systems/' + dellNode.id + '/Processors/100')
                 .expect('Content-Type', /^application\/json/)
@@ -1875,7 +1880,7 @@ describe('Redfish Systems Root', function () {
         it('should return a valid processor for a Cisco node', function() {
             waterline.catalogs.findLatestCatalogOfSource.resolves(Promise.resolve(ucsCatalog));
             waterline.nodes.needByIdentifier.withArgs(ucsNode.id).resolves(Promise.resolve(ucsNode));
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsNode});
 
             return helper.request().get('/redfish/v1/Systems/' + ucsNode.id + '/Processors/0')
                 .expect('Content-Type', /^application\/json/)
@@ -1891,7 +1896,7 @@ describe('Redfish Systems Root', function () {
         it('should throw an invalid socketId error for Cisco Node', function() {
             waterline.catalogs.findLatestCatalogOfSource.resolves(Promise.resolve(ucsCatalog));
             waterline.nodes.needByIdentifier.withArgs(ucsNode.id).resolves(Promise.resolve(ucsNode));
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsNode});
 
             return helper.request().get('/redfish/v1/Systems/' + ucsNode.id + '/Processors/100')
                 .expect('Content-Type', /^application\/json/)
@@ -1909,7 +1914,7 @@ describe('Redfish Systems Root', function () {
                 data: catalogData
             }));
             waterline.nodes.needByIdentifier.withArgs(node.id).resolves(Promise.resolve(node));
-            redfish.getVendorNameById.resolves({vendor: 'other'});
+            redfish.getVendorNameById.resolves({vendor: 'other', node: node});
 
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/Processors/0')
                 .expect('Content-Type', /^application\/json/)
@@ -1929,7 +1934,7 @@ describe('Redfish Systems Root', function () {
                 data: catalogData
             }));
             waterline.nodes.needByIdentifier.withArgs(node.id).resolves(Promise.resolve(node));
-            redfish.getVendorNameById.resolves({vendor: 'other'});
+            redfish.getVendorNameById.resolves({vendor: 'other', node: node});
 
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/Processors/100')
                 .expect('Content-Type', /^application\/json/)
@@ -1940,21 +1945,21 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should 404 an invalid processor', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Dell'});
+            redfish.getVendorNameById.resolves({vendor: 'Dell', node: node});
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/Processors/bad')
                 .expect('Content-Type', /^application\/json/)
                 .expect(404);
         });
 
         it('should 404 an invalid processor', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: node});
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/Processors/bad')
                 .expect('Content-Type', /^application\/json/)
                 .expect(404);
         });
 
         it('should 404 an invalid processor', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: node});
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/Processors/bad')
                 .expect('Content-Type', /^application\/json/)
                 .expect(404);
@@ -2056,7 +2061,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should return a valid Cisco simple storage list', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsNode});
             waterline.nodes.needByIdentifier.withArgs(ucsNode.id).resolves(ucsNode);
             waterline.catalogs.findLatestCatalogOfSource.resolves(ucsCatalog);
 
@@ -2072,7 +2077,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should return a valid simple storage list for devices with DELL catalogs', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Dell'});
+            redfish.getVendorNameById.resolves({vendor: 'Dell', node: dellNode});
             waterline.catalogs.findLatestCatalogOfSource.resolves({
                 node: '1234abcd1234abcd1234abcd',
                 source: 'dummysource',
@@ -2090,7 +2095,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should return a valid simple storage list for non-Dell & non-Cisco catalogs', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: node});
             waterline.catalogs.findLatestCatalogOfSource.withArgs(node.id, 'smart').resolves({
                 node: '1234abcd1234abcd1234abcd',
                 source: 'dummysource',
@@ -2114,7 +2119,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should 404 an invalid simple storage for Dell node', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Dell'});
+            redfish.getVendorNameById.resolves({vendor: 'Dell', node: dellNode});
             waterline.nodes.needByIdentifier.rejects(new Errors.NotFoundError('No node found'));
 
             return helper.request().get('/redfish/v1/Systems/' + dellNode.id + '/SimpleStorage')
@@ -2123,7 +2128,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should 404 an invalid simple storage for Cisco node', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Cisco'});
+            redfish.getVendorNameById.resolves({vendor: 'Cisco', node: ucsNode});
             waterline.nodes.needByIdentifier.rejects(new Errors.NotFoundError('No node found'));
 
             return helper.request().get('/redfish/v1/Systems/' + ucsNode.id + '/SimpleStorage')
@@ -2132,7 +2137,7 @@ describe('Redfish Systems Root', function () {
         });
 
         it('should 404 an invalid simple storage for non-Dell & non-Cisco node', function() {
-            redfish.getVendorNameById.resolves({vendor: 'Other'});
+            redfish.getVendorNameById.resolves({vendor: 'Other', node: node});
             waterline.nodes.needByIdentifier.rejects(new Errors.NotFoundError('No node found'));
 
             return helper.request().get('/redfish/v1/Systems/' + node.id + '/SimpleStorage')
@@ -2205,7 +2210,7 @@ describe('Redfish Systems Root', function () {
 
         it('should return a valid simple storage device with valid contoller', function(){
             redfish.getVendorNameById.resolves({
-                node: node,
+                node: ucsNode,
                 vendor: 'Cisco'
             });
             nodeApi.getNodeCatalogSourceById.withArgs(ucsNode.id, 'UCS:board').resolves({
@@ -2245,7 +2250,7 @@ describe('Redfish Systems Root', function () {
         });
         it('should return a invalid simple storage device with undefined controller', function(){
             redfish.getVendorNameById.resolves({
-                node: node,
+                node: ucsNode,
                 vendor: 'Cisco'
             });
             nodeApi.getNodeCatalogSourceById.withArgs(ucsNode.id, 'UCS:board').resolves({
