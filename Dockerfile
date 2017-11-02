@@ -12,6 +12,7 @@ RUN mkdir -p ./node_modules \
   && ln -s /RackHD/on-tasks ./node_modules/on-tasks \
   && ln -s /RackHD/on-core ./node_modules/on-core \
   && ln -s /RackHD/on-core/node_modules/di ./node_modules/di \
+  && apt-get update \
   && apt-get install -y unzip curl \
   && npm install \
   && npm install apidoc \
